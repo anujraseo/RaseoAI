@@ -118,7 +118,7 @@ async function sendContactEmail({
     await resend.emails.send({
       from: FROM,
       to: TO,
-      replyTo: email,
+      reply_to: email,
       subject: `📬 New Contact: ${subject || name} — RaseoAI`,
       html,
     })
