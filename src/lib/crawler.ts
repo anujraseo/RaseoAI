@@ -63,10 +63,22 @@ $('h3').each((_, el) => { h3Tags.push($(el).text().trim()) })
   const hasTwitterCards = !!$('meta[name^="twitter:"]').length
 
   const origin = `${parsedBase.protocol}//${parsedBase.host}`
-  const [hasSitemap, hasRobotsTxt] = await Promise.all([
-    fetch(`${origin}/sitemap.xml`).then(r => r.ok).catch(() => false),
-    fetch(`${origin}/robots.txt`).then(r => r.ok).catch(() => false),
-  ])
+ 
+ async function fetchWithTimeout(url: string, ms = 3000): Promise<boolean> {
+  try {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), ms)
+    const r = await fetch(url, { signal: controller.signal })
+    return r.ok
+  } catch {
+    return false
+  }
+}
+
+const [hasSitemap, hasRobotsTxt] = await Promise.all([
+  fetchWithTimeout(`${origin}/sitemap.xml`),
+  fetchWithTimeout(`${origin}/robots.txt`),
+])
 
   const bodyText = $('body').text().replace(/\s+/g, ' ').trim()
   const wordCount = bodyText.split(' ').filter(Boolean).length

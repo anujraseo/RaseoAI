@@ -3,6 +3,7 @@ import { getAuditResult } from '@/lib/auditService'
 import { queryOne } from '@/lib/db'
 import { Audit } from '@/types'
 
+export const maxDuration = 60
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
