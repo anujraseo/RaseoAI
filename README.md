@@ -206,3 +206,4 @@ Limits are enforced server-side via PostgreSQL `check_rate_limit()` function.
 
 MIT — free to use and modify.
 Built for **raseotech.com**
+# RaseoAI
