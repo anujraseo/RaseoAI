@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     const filename = `seo-audit-${domain?.domain ?? 'report'}-${new Date().toISOString().split('T')[0]}.pdf`
 
-    return new NextResponse(pdf, {
+    return new NextResponse(pdf as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
