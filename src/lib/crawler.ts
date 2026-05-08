@@ -31,21 +31,21 @@ export async function crawlPage(rawUrl: string): Promise<CrawlResult> {
   const h1Tags: string[] = []
   const h2Tags: string[] = []
   const h3Tags: string[] = []
-  $('h1').each((_, el) => h1Tags.push($(el).text().trim()))
-  $('h2').each((_, el) => h2Tags.push($(el).text().trim()))
-  $('h3').each((_, el) => h3Tags.push($(el).text().trim()))
+ $('h1').each((_, el) => { h1Tags.push($(el).text().trim()) })
+$('h2').each((_, el) => { h2Tags.push($(el).text().trim()) })
+$('h3').each((_, el) => { h3Tags.push($(el).text().trim()) })
 
   const images: ImageInfo[] = []
-  $('img').each((_, el) => {
-    images.push({
-      src: $(el).attr('src') || '',
-      alt: $(el).attr('alt') ?? null,
-    })
-  })
+ $('img').each((_, el) => {
+  images.push({
+    src: $(el).attr('src') || '',
+    alt: $(el).attr('alt') ?? null,
+  }); return true
+})
 
   const parsedBase = new URL(finalUrl)
   const links: LinkInfo[] = []
-  $('a[href]').each((_, el) => {
+  $('a[href]').each((_, el): void => {
     const href = $(el).attr('href') || ''
     const text = $(el).text().trim()
     let isInternal = false
