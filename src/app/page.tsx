@@ -45,39 +45,59 @@ export default function HomePage() {
   }
 
   const startPolling = (auditId: string) => {
-    console.log('Starting polling for:', auditId)
-    let attempts = 0
+  console.log('Polling started for:', auditId)
+  let attempts = 0
 
-    const timer = setInterval(async () => {
-      attempts++
-      if (attempts > 40) {
+  const timer = setInterval(async () => {
+    attempts++
+
+    if (attempts > 60) {
+      clearInterval(timer)
+      setErrorMessage('Audit timed out. Please try again.')
+      setAppState('error')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/results/' + auditId)
+      if (!res.ok) return
+
+      const data = await res.json()
+
+      // Check all possible locations of status
+      const status =
+        data?.status ??
+        data?.audit?.status ??
+        null
+
+      console.log('Poll response status:', status, 'attempt:', attempts)
+
+      // If we have audit data with a score — it's completed
+      if (data?.audit?.overall_score !== null && data?.audit?.overall_score !== undefined) {
+        console.log('✅ Report ready! Score:', data.audit.overall_score)
         clearInterval(timer)
-        setErrorMessage('Audit timed out. Please try again.')
-        setAppState('error')
+        setResult(data as AuditResultResponse)
+        setAppState('complete')
         return
       }
 
-      try {
-        const res = await fetch('/api/results/' + auditId)
-        const data = await res.json()
-        const status = data.status ?? data.audit?.status
-
-        if (status === 'completed' || status === undefined) {
-          clearInterval(timer)
-          setResult(data as AuditResultResponse)
-          setAppState('lead_gate') // Show lead gate before report
-        } else if (status === 'failed') {
-          clearInterval(timer)
-          setErrorMessage(data.error ?? 'Audit failed.')
-          setAppState('error')
-        } else {
-          setProgress(data as AuditProgressResponse)
-        }
-      } catch (err) {
-        console.log('Poll error:', err)
+      if (status === 'completed') {
+        clearInterval(timer)
+        setResult(data as AuditResultResponse)
+        setAppState('complete')
+      } else if (status === 'failed') {
+        clearInterval(timer)
+        setErrorMessage(data.error ?? 'Audit failed. Please try again.')
+        setAppState('error')
+      } else {
+        setProgress(data as AuditProgressResponse)
       }
-    }, 5000)
-  }
+
+    } catch (err) {
+      console.log('Poll error:', err)
+    }
+  }, 3000)
+}
 
   const handleReset = () => {
     setAppState('idle')
