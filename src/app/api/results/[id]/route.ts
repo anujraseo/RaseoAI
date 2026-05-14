@@ -4,6 +4,7 @@ import { queryOne } from '@/lib/db'
 import { Audit } from '@/types'
 
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }

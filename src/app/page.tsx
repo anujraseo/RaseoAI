@@ -50,7 +50,7 @@ export default function HomePage() {
 
     const timer = setInterval(async () => {
       attempts++
-      if (attempts > 60) {
+      if (attempts > 40) {
         clearInterval(timer)
         setErrorMessage('Audit timed out. Please try again.')
         setAppState('error')
@@ -76,7 +76,7 @@ export default function HomePage() {
       } catch (err) {
         console.log('Poll error:', err)
       }
-    }, 3000)
+    }, 5000)
   }
 
   const handleReset = () => {

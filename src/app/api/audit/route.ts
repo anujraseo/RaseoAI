@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAudit, runAudit, isRateLimited } from '@/lib/auditService'
 
-export const maxDuration = 60 // 60 seconds (Vercel Pro) or 10 seconds (Free)
+
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+
 
 const SubmitSchema = z.object({
   url: z.string().url('Please enter a valid URL'),
