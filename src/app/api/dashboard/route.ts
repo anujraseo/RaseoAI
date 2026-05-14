@@ -16,15 +16,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const [stats, recentAudits, topIssues, scoreDistribution, dailyAudits] = await Promise.all([
-    getGlobalStats(),
-    getRecentAudits(20),
-    getTopIssues(10),
-    getScoreDistribution(),
-    getDailyAudits(30),
-  ])
+  const [stats, recentAudits, topIssues, scoreDistribution, dailyAudits, recentLeads] = await Promise.all([
+  getGlobalStats(),
+  getRecentAudits(20),
+  getTopIssues(10),
+  getScoreDistribution(),
+  getDailyAudits(30),
+  getRecentLeads(20),
+])
 
-  return NextResponse.json({ stats, recentAudits, topIssues, scoreDistribution, dailyAudits })
+return NextResponse.json({ stats, recentAudits, topIssues, scoreDistribution, dailyAudits, recentLeads })
+
 }
 
 // ============================================================
@@ -119,4 +121,23 @@ async function getDailyAudits(days: number) {
     GROUP BY 1
     ORDER BY 1
   `, [days])
+}
+
+async function getRecentLeads(limit: number) {
+  return query<any>(`
+    SELECT
+      l.id,
+      l.full_name,
+      l.email,
+      l.phone,
+      l.company,
+      l.url,
+      l.score,
+      l.created_at,
+      a.grade
+    FROM leads l
+    LEFT JOIN audits a ON a.id = l.audit_id
+    ORDER BY l.created_at DESC
+    LIMIT $1
+  `, [limit])
 }
