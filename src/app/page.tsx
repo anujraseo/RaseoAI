@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import HeroSection from '@/components/audit/HeroSection'
 import LoadingSection from '@/components/audit/LoadingSection'
 import ReportSection from '@/components/audit/ReportSection'
@@ -15,6 +15,14 @@ export default function HomePage() {
   const [result, setResult] = useState<AuditResultResponse | null>(null)
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [submittedUrl, setSubmittedUrl] = useState<string>('')
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
 
   const handleSubmit = async (url: string, recaptchaToken: string) => {
     setSubmittedUrl(url)
@@ -25,11 +33,10 @@ export default function HomePage() {
       const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, recaptchaToken }),
+        body: JSON.stringify({ url, recaptchaToken, honeypot: '' }),
       })
 
       const data = await res.json()
-      console.log('Audit created:', data)
 
       if (!res.ok) {
         setErrorMessage(data.error ?? 'Failed to start audit.')
@@ -44,62 +51,77 @@ export default function HomePage() {
     }
   }
 
-  const startPolling = (auditId: string) => {
-  console.log('Polling started for:', auditId)
-  let attempts = 0
-
-  const timer = setInterval(async () => {
-    attempts++
-
-    if (attempts > 60) {
-      clearInterval(timer)
-      setErrorMessage('Audit timed out. Please try again.')
-      setAppState('error')
-      return
-    }
-
+  const fetchResult = async (auditId: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/results/' + auditId)
-      if (!res.ok) return
+      if (!res.ok) return false
 
       const data = await res.json()
 
-      // Check all possible locations of status
-      const status =
-        data?.status ??
-        data?.audit?.status ??
-        null
-
-      console.log('Poll response status:', status, 'attempt:', attempts)
-
-      // If we have audit data with a score — it's completed
-      if (data?.audit?.overall_score !== null && data?.audit?.overall_score !== undefined) {
-        console.log('✅ Report ready! Score:', data.audit.overall_score)
-        clearInterval(timer)
+      // Completed — has score
+      if (data?.audit?.overall_score !== null &&
+          data?.audit?.overall_score !== undefined) {
         setResult(data as AuditResultResponse)
-        setAppState('complete')
-        return
+        setAppState('lead_gate')
+        return true
       }
 
+      // Status based check
+      const status = data?.status ?? data?.audit?.status
       if (status === 'completed') {
-        clearInterval(timer)
         setResult(data as AuditResultResponse)
-        setAppState('complete')
-      } else if (status === 'failed') {
-        clearInterval(timer)
+        setAppState('lead_gate')
+        return true
+      }
+
+      if (status === 'failed') {
         setErrorMessage(data.error ?? 'Audit failed. Please try again.')
         setAppState('error')
-      } else {
-        setProgress(data as AuditProgressResponse)
+        return true
       }
 
-    } catch (err) {
-      console.log('Poll error:', err)
+      setProgress(data as AuditProgressResponse)
+      return false
+    } catch {
+      return false
     }
-  }, 3000)
-}
+  }
+
+  const startPolling = (auditId: string) => {
+    if (timerRef.current) clearInterval(timerRef.current)
+
+    let attempts = 0
+    const MAX_ATTEMPTS = 60 // 60 x 3s = 3 minutes
+
+    // First check after 5 seconds
+    setTimeout(async () => {
+      const done = await fetchResult(auditId)
+      if (done) return
+
+      // Then poll every 3 seconds
+      timerRef.current = setInterval(async () => {
+        attempts++
+
+        if (attempts > MAX_ATTEMPTS) {
+          clearInterval(timerRef.current!)
+          // Don't show error — show a "check back" message
+          setErrorMessage(
+            'Your audit is still processing. Click "Try Again" to check if it completed.'
+          )
+          setAppState('error')
+          return
+        }
+
+        const done = await fetchResult(auditId)
+        if (done && timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+      }, 3000)
+    }, 5000)
+  }
 
   const handleReset = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
     setAppState('idle')
     setProgress(null)
     setResult(null)
@@ -117,14 +139,11 @@ export default function HomePage() {
         <LoadingSection url={submittedUrl} progress={progress} />
       )}
 
-      {/* Lead gate shows ON TOP of the report */}
       {appState === 'lead_gate' && result && (
         <>
-          {/* Blurred report behind modal */}
           <div style={{ filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.4 }}>
             <ReportSection result={result} onReset={handleReset} />
           </div>
-          {/* Lead capture modal */}
           <LeadCaptureModal
             auditId={result.audit?.id ?? ''}
             url={result.audit?.url ?? submittedUrl}
@@ -148,7 +167,7 @@ export default function HomePage() {
             fontFamily: 'var(--font-syne)', fontSize: 22,
             fontWeight: 700, color: '#fff', marginBottom: 12,
           }}>
-            Audit Failed
+            {errorMessage.includes('still processing') ? 'Almost Done!' : 'Audit Failed'}
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 28, lineHeight: 1.6 }}>
             {errorMessage}
@@ -156,7 +175,8 @@ export default function HomePage() {
           <button onClick={handleReset} style={{
             background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
             border: 'none', borderRadius: 10, color: '#fff',
-            padding: '12px 28px', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+            padding: '12px 28px', fontSize: 14, fontWeight: 500,
+            cursor: 'pointer',
           }}>
             Try Again
           </button>
