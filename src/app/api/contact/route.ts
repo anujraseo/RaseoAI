@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
         from: process.env.EMAIL_FROM ?? 'RaseoAI <onboarding@resend.dev>',
-        to: 'contact@raseotech.com',
+        to: 'hello@ai-seoaudit.com',
         reply_to: email,
         subject: `New Contact: ${subject || name} - RaseoAI`,
         html,
