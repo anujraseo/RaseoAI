@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'RaSEOTech — Free AI SEO Audit Tool',
     description: 'Get a full AI-powered SEO audit for your website in seconds. 120+ checks, completely free.',
-    url: 'https://raseotech.com',
+    url: 'https://ai-seoaudit.com',
     siteName: 'RaSEOTech',
     type: 'website',
   },
