@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const { url, honeypot } = body
 
     if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Please enter a URL' }, { status: 400 })
     }
 
     if (checkHoneypot(honeypot)) {
@@ -24,8 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getIp(req)
-    const parsedUrl = new URL(url)
-    const domain = parsedUrl.hostname.replace(/^www\./, '')
+    const domain = new URL(url).hostname.replace(/^www\./, '')
 
     const rateLimited = await isRateLimited(ip, domain)
     if (rateLimited) {
@@ -45,12 +44,12 @@ export async function POST(req: NextRequest) {
         'x-internal-key': process.env.INTERNAL_API_KEY ?? 'internal123',
       },
       body: JSON.stringify({ auditId: audit.id }),
-    }).catch((err: Error) => console.error('Background trigger:', err.message))
+    }).catch((e: Error) => console.error('Background error:', e.message))
 
     return NextResponse.json({ auditId: audit.id, status: 'pending' })
 
   } catch (err: any) {
-    console.error('POST /api/audit error:', err?.message)
+    console.error('Audit error:', err?.message)
     return NextResponse.json(
       { error: 'Failed to start audit. Please try again.' },
       { status: 500 }
