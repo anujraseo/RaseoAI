@@ -1,8 +1,7 @@
-cat > ~/Downloads/files/raseotech/src/app/api/audit/route.ts << 'ENDOFFILE'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAudit, isRateLimited } from '@/lib/auditService'
-import { checkSpam, validateAuditUrl, checkHoneypot, getIp } from '@/lib/spamProtection'
+import { validateAuditUrl, checkHoneypot, getIp } from '@/lib/spamProtection'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -56,22 +55,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create audit record
     const audit = await createAudit(url, ip)
 
-    // Trigger background processing via separate API call
-    // This runs independently and won't timeout the response
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ai-seoaudit.com'
-    fetch(`${baseUrl}/api/process-audit`, {
+    fetch(baseUrl + '/api/process-audit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-internal-key': process.env.INTERNAL_API_KEY ?? 'internal123',
       },
       body: JSON.stringify({ auditId: audit.id }),
-    }).catch(err => console.error('Background trigger error:', err.message))
+    }).catch((err: Error) => console.error('Background trigger error:', err.message))
 
-    // Return immediately — don't wait for audit to complete
     return NextResponse.json({ auditId: audit.id, status: 'pending' })
 
   } catch (err: any) {
@@ -91,7 +86,7 @@ async function verifyRecaptcha(token: string): Promise<boolean> {
     const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
+      body: 'secret=' + process.env.RECAPTCHA_SECRET_KEY + '&response=' + token,
     })
     const data = await res.json()
     return data.success === true && (data.score ?? 1) >= 0.5
@@ -99,5 +94,3 @@ async function verifyRecaptcha(token: string): Promise<boolean> {
     return false
   }
 }
-ENDOFFILE
-echo "Audit route updated"
