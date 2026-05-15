@@ -1,0 +1,14 @@
+{
+  "name": "AI SEO Audit",
+  "short_name": "RaseoAI",
+  "description": "Free AI-Powered SEO Audit Tool",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050810",
+  "theme_color": "#3b82f6",
+  "icons": [
+    { "src": "/favicon-16x16.png", "sizes": "16x16", "type": "image/png" },
+    { "src": "/favicon-32x32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
