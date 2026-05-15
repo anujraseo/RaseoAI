@@ -28,8 +28,23 @@ export default function HeroSection({ onSubmit }: Props) {
   const [captchaError, setCaptchaError] = useState(false)
   const [wordIndex, setWordIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const recaptchaLoaded = useRef(false)
 
+  // Load reCAPTCHA
+  useEffect(() => {
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+    if (!siteKey || siteKey === 'placeholder' || recaptchaLoaded.current) return
+    const existing = document.querySelector('script[src*="recaptcha"]')
+    if (existing) { recaptchaLoaded.current = true; return }
+    const script = document.createElement('script')
+    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`
+    script.onload = () => { recaptchaLoaded.current = true }
+    document.head.appendChild(script)
+  }, [])
+
+  // Rotating words
   useEffect(() => {
     const interval = setInterval(() => {
       setIsTransitioning(true)
@@ -41,6 +56,7 @@ export default function HeroSection({ onSubmit }: Props) {
     return () => clearInterval(interval)
   }, [])
 
+  // Neural network canvas
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -50,7 +66,13 @@ export default function HeroSection({ onSubmit }: Props) {
     canvas.height = canvas.offsetHeight
     const nodes: { x: number; y: number; vx: number; vy: number; r: number }[] = []
     for (let i = 0; i < 60; i++) {
-      nodes.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, r: Math.random() * 2 + 1 })
+      nodes.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 2 + 1,
+      })
     }
     let animId: number
     function draw() {
@@ -87,15 +109,42 @@ export default function HeroSection({ onSubmit }: Props) {
     return () => cancelAnimationFrame(animId)
   }, [])
 
-  function handleSubmit() {
+  async function getRecaptchaToken(): Promise<string> {
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+    if (!siteKey || siteKey === 'placeholder') return 'placeholder'
+    const w = window as any
+    if (!w.grecaptcha) return 'placeholder'
+    try {
+      return await new Promise<string>((resolve) => {
+        w.grecaptcha.ready(() => {
+          w.grecaptcha.execute(siteKey, { action: 'audit' }).then(resolve)
+        })
+      })
+    } catch {
+      return 'placeholder'
+    }
+  }
+
+  async function handleSubmit() {
     setUrlError('')
     setCaptchaError(false)
+
     let normalized = url.trim()
     if (!normalized) { setUrlError('Please enter a website URL'); return }
-    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) normalized = 'https://' + normalized
+    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+      normalized = 'https://' + normalized
+    }
     try { new URL(normalized) } catch { setUrlError('Please enter a valid URL'); return }
     if (!captchaChecked) { setCaptchaError(true); return }
-    onSubmit(normalized, 'mock_token')
+
+    setIsSubmitting(true)
+    try {
+      const token = await getRecaptchaToken()
+      onSubmit(normalized, token)
+    } catch {
+      onSubmit(normalized, 'placeholder')
+    }
+    setIsSubmitting(false)
   }
 
   return (
@@ -104,16 +153,20 @@ export default function HeroSection({ onSubmit }: Props) {
       <div className={styles.orb1} />
       <div className={styles.orb2} />
       <div className={styles.orb3} />
+
       <div className={styles.tagsContainer}>
         {FLOATING_TAGS.map((tag, i) => (
-          <div key={i} className={styles.floatingTag} style={{ left: tag.x + '%', top: tag.y + '%', borderColor: tag.color + '40', color: tag.color, animationDelay: tag.delay + 's' }}>
+          <div key={i} className={styles.floatingTag} style={{
+            left: tag.x + '%', top: tag.y + '%',
+            borderColor: tag.color + '40', color: tag.color,
+            animationDelay: tag.delay + 's',
+          }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: tag.color, display: 'inline-block', marginRight: 6, flexShrink: 0 }} />
             {tag.text}
           </div>
         ))}
       </div>
 
-      {/* Nav */}
       <nav className={styles.nav}>
         <Link href="/" className={styles.logo}>
           <div className={styles.logoIcon}>
@@ -133,7 +186,6 @@ export default function HeroSection({ onSubmit }: Props) {
         <Link href="/features" className={styles.navBadge}>Free Tool</Link>
       </nav>
 
-      {/* Hero Content */}
       <section className={styles.hero}>
         <div className={styles.aiBadge}>
           <span className={styles.aiBadgeDot} />
@@ -168,33 +220,74 @@ export default function HeroSection({ onSubmit }: Props) {
             </div>
             <span className={styles.inputCardLabel}>AI SEO Analyzer</span>
           </div>
+
           <div className={styles.inputRow} style={{ borderColor: urlError ? 'rgba(248,113,113,0.4)' : undefined }}>
             <span className={styles.inputIcon}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M6.5 1C3.46 1 1 3.46 1 6.5S3.46 12 6.5 12c1.33 0 2.55-.46 3.51-1.22l3.6 3.59 1.06-1.06-3.59-3.6A5.47 5.47 0 0012 6.5C12 3.46 9.54 1 6.5 1zm0 1.5a4 4 0 110 8 4 4 0 010-8z" fill="rgba(255,255,255,0.4)"/>
               </svg>
             </span>
-            <input type="text" value={url} onChange={e => { setUrl(e.target.value); setUrlError('') }} onKeyDown={e => e.key === 'Enter' && handleSubmit()} placeholder="https://yourwebsite.com" className={styles.urlInput} />
-            <button onClick={handleSubmit} className={styles.analyzeBtn}>
-              <span>Analyze Now</span>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <input
+              type="text"
+              value={url}
+              onChange={e => { setUrl(e.target.value); setUrlError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              placeholder="https://yourwebsite.com"
+              className={styles.urlInput}
+              autoComplete="url"
+              spellCheck={false}
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className={styles.analyzeBtn}
+              style={{ opacity: isSubmitting ? 0.7 : 1 }}
+            >
+              <span>{isSubmitting ? 'Analyzing...' : 'Analyze Now'}</span>
+              {!isSubmitting && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
             </button>
           </div>
+
           {urlError && <p className={styles.errorText}>{urlError}</p>}
+
           <div className={styles.captchaRow}>
-            <div className={`${styles.captchaBox} ${captchaChecked ? styles.captchaChecked : ''} ${captchaError ? styles.captchaError : ''}`} onClick={() => { setCaptchaChecked(!captchaChecked); setCaptchaError(false) }}>
-              {captchaChecked && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            <div
+              className={`${styles.captchaBox} ${captchaChecked ? styles.captchaChecked : ''} ${captchaError ? styles.captchaError : ''}`}
+              onClick={() => { setCaptchaChecked(!captchaChecked); setCaptchaError(false) }}
+              role="checkbox"
+              tabIndex={0}
+              onKeyDown={e => e.key === ' ' && setCaptchaChecked(!captchaChecked)}
+            >
+              {captchaChecked && (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
             </div>
             <span className={styles.captchaLabel}>I'm not a robot</span>
             <span className={styles.captchaNote}>reCAPTCHA · Privacy · Terms</span>
           </div>
           {captchaError && <p className={styles.errorText}>Please confirm you're not a robot</p>}
+
+          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.15)', textAlign: 'center', padding: '0 16px 10px' }}>
+            Protected by Google reCAPTCHA ·{'  '}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.25)', textDecoration: 'none' }}>Privacy</a>
+            {'  ·  '}
+            <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.25)', textDecoration: 'none' }}>Terms</a>
+          </p>
         </div>
 
         <div className={styles.statsRow}>
-          {[{ num: '48K+', label: 'Sites Audited', icon: '📊' }, { num: '120+', label: 'SEO Checks', icon: '✅' }, { num: '< 30s', label: 'Audit Speed', icon: '⚡' }, { num: 'Free', label: 'No Credit Card', icon: '🎁' }].map(s => (
+          {[
+            { num: '48K+', label: 'Sites Audited', icon: '📊' },
+            { num: '120+', label: 'SEO Checks', icon: '✅' },
+            { num: '< 30s', label: 'Audit Speed', icon: '⚡' },
+            { num: 'Free', label: 'No Credit Card', icon: '🎁' },
+          ].map(s => (
             <div key={s.label} className={styles.statItem}>
               <span className={styles.statIcon}>{s.icon}</span>
               <div>
