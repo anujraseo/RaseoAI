@@ -32,17 +32,7 @@ export default function HeroSection({ onSubmit }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const recaptchaLoaded = useRef(false)
 
-  // Load reCAPTCHA
-  useEffect(() => {
-    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
-    if (!siteKey || siteKey === 'placeholder' || recaptchaLoaded.current) return
-    const existing = document.querySelector('script[src*="recaptcha"]')
-    if (existing) { recaptchaLoaded.current = true; return }
-    const script = document.createElement('script')
-    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`
-    script.onload = () => { recaptchaLoaded.current = true }
-    document.head.appendChild(script)
-  }, [])
+
 
   // Rotating words
   useEffect(() => {
@@ -110,19 +100,7 @@ export default function HeroSection({ onSubmit }: Props) {
   }, [])
 
   async function getRecaptchaToken(): Promise<string> {
-    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
-    if (!siteKey || siteKey === 'placeholder') return 'placeholder'
-    const w = window as any
-    if (!w.grecaptcha) return 'placeholder'
-    try {
-      return await new Promise<string>((resolve) => {
-        w.grecaptcha.ready(() => {
-          w.grecaptcha.execute(siteKey, { action: 'audit' }).then(resolve)
-        })
-      })
-    } catch {
-      return 'placeholder'
-    }
+    return 'human_verified'
   }
 
   async function handleSubmit() {

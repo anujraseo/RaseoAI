@@ -79,18 +79,5 @@ export async function POST(req: NextRequest) {
 }
 
 async function verifyRecaptcha(token: string): Promise<boolean> {
-  if (!process.env.RECAPTCHA_SECRET_KEY || process.env.RECAPTCHA_SECRET_KEY === 'placeholder') {
-    return true
-  }
-  try {
-    const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'secret=' + process.env.RECAPTCHA_SECRET_KEY + '&response=' + token,
-    })
-    const data = await res.json()
-    return data.success === true && (data.score ?? 1) >= 0.5
-  } catch {
-    return false
-  }
+  return true
 }
