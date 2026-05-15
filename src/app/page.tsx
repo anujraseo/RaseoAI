@@ -33,7 +33,7 @@ export default function HomePage() {
       const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, recaptchaToken, honeypot: '' }),
+        body: JSON.stringify({ url, honeypot: '' }),
       })
 
       const data = await res.json()
