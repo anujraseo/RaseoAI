@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 const SubmitSchema = z.object({
   url: z.string().url('Please enter a valid URL'),
-  recaptchaToken: z.string().min(1, 'Captcha is required'),
+  recaptchaToken: z.string().optional(),
   honeypot: z.string().optional(),
 })
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { url, recaptchaToken, honeypot } = parsed.data
+    const { url, honeypot } = parsed.data
 
     if (checkHoneypot(honeypot)) {
       return NextResponse.json({ auditId: 'blocked', status: 'pending' })
@@ -33,14 +33,6 @@ export async function POST(req: NextRequest) {
     const urlCheck = validateAuditUrl(url)
     if (urlCheck.blocked) {
       return NextResponse.json({ error: urlCheck.reason ?? 'Invalid URL' }, { status: 400 })
-    }
-
-    const captchaValid = await verifyRecaptcha(recaptchaToken)
-    if (!captchaValid) {
-      return NextResponse.json(
-        { error: 'Captcha verification failed. Please try again.' },
-        { status: 400 }
-      )
     }
 
     const ip = getIp(req)
@@ -76,8 +68,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-async function verifyRecaptcha(token: string): Promise<boolean> {
-  return true
 }
